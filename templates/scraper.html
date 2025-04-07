@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Scraper - SMS System{% endblock %}
+
+{% block content %}
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Scraper</h2>
+    <div class="table-toggle-bar" style="display: flex; gap: 14px;">
+      <button class="table-btn" onclick="togglePopup('scraper-popup')">View Scraped Contacts</button>
+    </div>
+  </div>
+
+  <!-- Scraper Table Popup -->
+  <div id="scraper-popup" class="popup-overlay" style="display: none;">
+    <div class="popup-content">
+      <button class="close-btn" onclick="togglePopup('scraper-popup')">✕</button>
+      <h3>Scraped Contacts</h3>
+      {% if scraper_data %}
+      <table>
+        <thead>
+          <tr>
+            {% for col in scraper_data[0].keys() %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in scraper_data %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p>No scraped contacts found.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    function togglePopup(id) {
+      const popup = document.getElementById(id);
+      popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+    }
+  </script>
+{% endblock %}

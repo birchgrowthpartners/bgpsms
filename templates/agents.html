@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}Agents - SMS System{% endblock %}
+
+{% block content %}
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Agents</h2>
+    <div class="table-toggle-bar" style="display: flex; gap: 14px;">
+      <button class="table-btn" onclick="togglePopup('agents-popup')">View Agents</button>
+    </div>
+  </div>
+
+  <!-- Agents Table Popup -->
+  <div id="agents-popup" class="popup-overlay" style="display: none;">
+    <div class="popup-content">
+      <button class="close-btn" onclick="togglePopup('agents-popup')">✕</button>
+      <h3>Agents</h3>
+      {% if agent_data %}
+      <table>
+        <thead>
+          <tr>
+            {% for col in agent_data[0].keys() %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in agent_data %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p>No agents found.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    function togglePopup(id) {
+      const popup = document.getElementById(id);
+      popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+    }
+  </script>
+{% endblock %}

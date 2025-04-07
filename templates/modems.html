@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+{% block title %}Modems - SMS System{% endblock %}
+
+{% block content %}
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Modems</h2>
+    <div class="table-toggle-bar">
+      <button id="view-log-btn" class="log-btn">View Log</button>
+      <button class="table-btn" onclick="togglePopup('modem-table')">View Active Modems</button>
+    </div>
+  </div>
+
+  <div class="modem-dashboard">
+    <p><strong>Status:</strong> {{ table_data|length }} modems active and ready</p>
+    <ul>
+      {% for modem in table_data %}
+        <li>{{ modem['port'] }} – {{ modem['status'] }}</li>
+      {% endfor %}
+    </ul>
+  </div>
+
+  <!-- Flash Message Display -->
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="flash-messages">
+        {% for message in messages %}
+          <p>{{ message }}</p>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  <div class="modem-actions">
+    <div class="action-column">
+      <h3>Auto Detect Modems</h3>
+      <div id="detection-status-indicator" class="status-indicator">
+        <div class="loading-circle"></div>
+      </div>
+      <div class="detection-btn-container">
+        <button id="detect-ports-btn" class="action-btn">Auto Detect Ports</button>
+      </div>
+      
+      <!-- Detection Results Container -->
+      <div class="detection-results" id="detection-results-container" style="display: none;">
+        <h4>Detection Results</h4>
+        <p><strong>Total Working Modems:</strong> <span id="total-modems">0</span></p>
+        <div>
+          <strong>Confirmed Ports:</strong>
+          <ul id="confirmed-ports-list">
+            <!-- Ports will be inserted here dynamically -->
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="action-column">
+      <h3>Configure Modems</h3>
+      <form action="/configure-modems" method="get">
+        <button type="submit" class="action-btn">Configure Ports to Send & Receive SMS</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- POPUP TABLE VIEWER -->
+  <div id="modem-table" class="popup-overlay" style="display: none;">
+    <div class="popup-content">
+      <button class="close-btn" onclick="togglePopup('modem-table')">✕</button>
+      <h3>Active Modems</h3>
+      {% if table_data %}
+      <table>
+        <thead>
+          <tr>
+            {% for col in table_data[0].keys() %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in table_data %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p>No modems found.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- POPUP ERROR LOG VIEWER -->
+  <div id="error-log" class="popup-overlay" style="display: none;">
+    <div class="popup-content log-popup-content">
+      <div class="log-header">
+        <h3>Terminal Output</h3>
+        <div class="log-actions">
+          <button class="log-action-btn" onclick="clearLog()">Clear</button>
+          <button class="log-action-btn" onclick="copyLogToClipboard()">Copy</button>
+          <button class="close-btn" id="close-log-btn">✕</button>
+        </div>
+      </div>
+      <div class="log-container">
+        <pre id="error-log-content">Waiting for logs...</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Load socket.io script dynamically to ensure it's available
+    document.addEventListener('DOMContentLoaded', function() {
+      // First, check if socket.io is already loaded
+      if (typeof io === 'undefined') {
+        var script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js';
+        script.onload = initSocketIO;
+        document.head.appendChild(script);
+      } else {
+        initSocketIO();
+      }
+    });
+
+    // Variables for tracking state
+    var isDetectionRunning = false;
+    var logMessages = [];
+    var socket;
+    
+    // Initialize Socket.IO
+    function initSocketIO() {
+      socket = io.connect(window.location.origin);
+      
+      // Socket connection event handlers
+      socket.on('connect', function() {
+        console.log('Socket connected');
+      });
+
+      socket.on('disconnect', function() {
+        console.log('Socket disconnected');
+        if (isDetectionRunning) {
+          logMessages.push('Warning: Socket disconnected while detection was running');
+          updateLogDisplay();
+          resetDetectionUI();
+        }
+      });
+
+      socket.on('connect_error', function(error) {
+        console.error('Connection error:', error);
+        logMessages.push('Socket connection error: ' + error.message);
+        updateLogDisplay();
+        
+        if (isDetectionRunning) {
+          resetDetectionUI();
+        }
+      });
+
+      // Load existing logs if available
+      socket.on('load_logs', function(data) {
+        if (data.logs && data.logs.length > 0) {
+          logMessages = data.logs;
+          updateLogDisplay();
+        }
+      });
+
+      // Handle new log output
+      socket.on('new_output', function(data) {
+        if (data && data.data) {
+          logMessages.push(data.data);
+          updateLogDisplay();
+          
+          // Update status indicator based on key phrases in the output
+          if (data.data.includes("Starting modem detection")) {
+            updateStatusIndicator('initializing');
+          } else if (data.data.includes("Detected ports:")) {
+            updateStatusIndicator('scanning');
+          } else if (data.data.includes("Testing modem on")) {
+            updateStatusIndicator('testing');
+          } else if (data.data.includes("Test Results Summary:")) {
+            updateStatusIndicator('analyzing');
+          } else if (data.data.includes("Total confirmed working modems:")) {
+            updateStatusIndicator('finalizing');
+          }
+        }
+      });
+
+      // Handle detection complete event
+      socket.on('detection_complete', function(data) {
+        // Update the detection results
+        document.getElementById('total-modems').textContent = data.total;
+        
+        // Update the confirmed ports list
+        var portsListElement = document.getElementById('confirmed-ports-list');
+        portsListElement.innerHTML = ''; // Clear the list
+        
+        if (data.confirmed_ports && data.confirmed_ports.length > 0) {
+          data.confirmed_ports.forEach(function(port) {
+            var li = document.createElement('li');
+            li.textContent = port;
+            portsListElement.appendChild(li);
+          });
+        } else {
+          var li = document.createElement('li');
+          li.textContent = 'No working modems detected';
+          portsListElement.appendChild(li);
+        }
+        
+        // Show the detection results container
+        document.getElementById('detection-results-container').style.display = 'block';
+        
+        // Update status indicator to complete
+        updateStatusIndicator('complete');
+        
+        // Reset the UI
+        resetDetectionUI();
+        
+        // Add a completion message to the log
+        logMessages.push('\nModem detection complete! Found ' + data.total + ' working modems.');
+        updateLogDisplay();
+      });
+
+      // Check detection status when connecting
+      checkDetectionStatus();
+    }
+    
+    // Function to update the status indicator
+    function updateStatusIndicator(status) {
+      const indicator = document.getElementById('detection-status-indicator');
+      indicator.className = 'status-indicator';
+      indicator.classList.add(status);
+      
+      // Add tooltip text based on status
+      let tooltipText = '';
+      switch(status) {
+        case 'initializing': tooltipText = 'Initializing...'; break;
+        case 'scanning': tooltipText = 'Scanning for modems...'; break;
+        case 'testing': tooltipText = 'Testing modems...'; break;
+        case 'analyzing': tooltipText = 'Analyzing results...'; break;
+        case 'finalizing': tooltipText = 'Finalizing...'; break;
+        case 'complete': tooltipText = 'Detection complete!'; break;
+        default: tooltipText = ''; 
+      }
+      
+      indicator.setAttribute('title', tooltipText);
+      
+      // Make sure the indicator is visible during detection
+      if (status !== 'idle' && status !== 'complete') {
+        indicator.style.display = 'block';
+      }
+    }
+    
+    // Function to check current detection status
+    function checkDetectionStatus() {
+      fetch('/detection-status')
+        .then(response => response.json())
+        .then(data => {
+          if (data.running) {
+            // Detection is already running, update UI
+            isDetectionRunning = true;
+            document.getElementById('detect-ports-btn').disabled = true;
+            document.getElementById('detect-ports-btn').textContent = 'Detection Running...';
+            updateStatusIndicator('testing');
+          } else {
+            updateStatusIndicator('idle');
+          }
+          
+          // Check if we have previous detection results
+          if (data.detected_modems && data.detected_modems.total > 0) {
+            document.getElementById('total-modems').textContent = data.detected_modems.total;
+            
+            var portsListElement = document.getElementById('confirmed-ports-list');
+            portsListElement.innerHTML = ''; // Clear the list
+            
+            data.detected_modems.confirmed_ports.forEach(function(port) {
+              var li = document.createElement('li');
+              li.textContent = port;
+              portsListElement.appendChild(li);
+            });
+            
+            document.getElementById('detection-results-container').style.display = 'block';
+          }
+        })
+        .catch(error => console.error('Error checking detection status:', error));
+
+      // Load existing logs
+      fetch('/get-logs')
+        .then(response => response.json())
+        .then(data => {
+          if (data.logs && data.logs.length > 0) {
+            logMessages = data.logs;
+            updateLogDisplay();
+          }
+        })
+        .catch(error => console.error('Error loading logs:', error));
+    }
+    
+    // Function to toggle popups
+    function togglePopup(id) {
+      const popup = document.getElementById(id);
+      popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+    }
+
+    // Function to clear the log content
+    function clearLog() {
+      logMessages = [];
+      document.getElementById('error-log-content').textContent = 'Log cleared...';
+    }
+
+    // Function to update the log display
+    function updateLogDisplay() {
+      const logContent = logMessages.join('\n');
+      document.getElementById('error-log-content').textContent = logContent || 'No logs available...';
+      
+      // Auto-scroll to bottom
+      const logElement = document.getElementById('error-log-content');
+      logElement.scrollTop = logElement.scrollHeight;
+    }
+
+    // Function to copy log content to clipboard
+    function copyLogToClipboard() {
+      const logContent = document.getElementById('error-log-content').textContent;
+      navigator.clipboard.writeText(logContent).then(function() {
+        alert('Log copied to clipboard!');
+      }, function(err) {
+        alert('Failed to copy log: ' + err);
+      });
+    }
+
+    // Function to start the detection process
+    function startDetection() {
+      if (isDetectionRunning) return;
+      
+      isDetectionRunning = true;
+      
+      // Update button state
+      const detectButton = document.getElementById('detect-ports-btn');
+      detectButton.disabled = true;
+      detectButton.textContent = 'Detection Running...';
+      
+      // Show and update status indicator
+      updateStatusIndicator('initializing');
+      
+      // Clear previous log content
+      logMessages = ['Starting modem detection...'];
+      updateLogDisplay();
+      
+      // Show the detection results container but reset its content
+      document.getElementById('detection-results-container').style.display = 'block';
+      document.getElementById('total-modems').textContent = '0';
+      document.getElementById('confirmed-ports-list').innerHTML = '<li>Scanning for modems...</li>';
+      
+      // Send the request to the server
+      fetch('/detect-ports')
+        .then(response => response.json())
+        .then(data => {
+          if (data.status !== 'started') {
+            throw new Error('Failed to start detection process');
+          }
+          // Process will continue via WebSocket events
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          logMessages.push('Error initiating detection: ' + error.message);
+          updateLogDisplay();
+          resetDetectionUI();
+        });
+    }
+    
+    // Function to reset the detection UI
+    function resetDetectionUI() {
+      isDetectionRunning = false;
+      const detectButton = document.getElementById('detect-ports-btn');
+      detectButton.disabled = false;
+      detectButton.textContent = 'Auto Detect Ports';
+      
+      // After a delay, hide the status indicator if set to idle
+      setTimeout(() => {
+        if (document.getElementById('detection-status-indicator').classList.contains('complete')) {
+          // Keep showing the complete indicator for a bit longer
+          setTimeout(() => {
+            updateStatusIndicator('idle');
+          }, 3000);
+        } else {
+          updateStatusIndicator('idle');
+        }
+      }, 1000);
+    }
+
+    // Handle the detect ports button click
+    document.getElementById('detect-ports-btn').addEventListener('click', function(e) {
+      e.preventDefault(); // Prevent default behavior
+      startDetection();
+    });
+
+    // Handle view log button click
+    document.getElementById('view-log-btn').addEventListener('click', function(e) {
+      e.preventDefault();
+      togglePopup('error-log');
+      updateLogDisplay();
+    });
+
+    // Handle close log button click
+    document.getElementById('close-log-btn').addEventListener('click', function(e) {
+      e.preventDefault();
+      togglePopup('error-log');
+    });
+
+    // Also check for existing detection results from server-side rendering
+    {% if detected_modems and detected_modems.total > 0 %}
+      document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('total-modems').textContent = '{{ detected_modems.total }}';
+        
+        var portsListElement = document.getElementById('confirmed-ports-list');
+        portsListElement.innerHTML = ''; // Clear the list
+        
+        {% for port in detected_modems.confirmed_ports %}
+          var li = document.createElement('li');
+          li.textContent = '{{ port }}';
+          portsListElement.appendChild(li);
+        {% endfor %}
+        
+        document.getElementById('detection-results-container').style.display = 'block';
+      });
+    {% endif %}
+  </script>
+{% endblock %}

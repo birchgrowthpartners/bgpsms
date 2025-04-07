@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% block title %}Inbox - SMS System{% endblock %}
+
+{% block content %}
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Inbox</h2>
+  </div>
+
+  <!-- Example Card - Smaller Version -->
+  <div class="example-card">
+    <div class="example-label">Example Format</div>
+    <div class="contact-card example">
+      <div class="contact-info compact">
+        <h4>John Doe</h4>
+        <p class="phone-number">+1 (555) 123-4567</p>
+      </div>
+      <div class="message-container compact">
+        <div class="message sent compact">
+          <p class="message-text">Sample message sent</p>
+          <p class="timestamp">2023-01-01 12:00</p>
+        </div>
+        <div class="message reply compact">
+          <p class="message-text">Sample reply</p>
+          <p class="timestamp">2023-01-01 12:15</p>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="claim-btn compact">Claim</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Replies Feed -->
+  <div class="replies-section">
+    <h3>Contact Replies</h3>
+    <div class="replies-container">
+      {% if replies_data %}
+        <div class="replies-feed">
+          {% for reply in replies_data %}
+            <div class="contact-card">
+              <div class="contact-info">
+                <h4>{{ reply.name }}</h4>
+                <p class="phone-number">{{ reply.phone }}</p>
+              </div>
+              <div class="message-container">
+                <div class="message sent">
+                  <p class="message-text">{{ reply.message_sent }}</p>
+                  <p class="timestamp">{{ reply.sent_timestamp }}</p>
+                </div>
+                <div class="message reply">
+                  <p class="message-text">{{ reply.reply_text }}</p>
+                  <p class="timestamp">{{ reply.reply_timestamp }}</p>
+                </div>
+              </div>
+              <div class="card-actions">
+                <button class="claim-btn">Claim</button>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="no-replies">No replies found.</p>
+      {% endif %}
+    </div>
+  </div>
+{% endblock %}

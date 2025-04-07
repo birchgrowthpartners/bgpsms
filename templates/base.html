@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>{% block title %}SMS System{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <header>
+    <div class="top-bar">
+      <div class="logo-container">
+        <img src="https://assets.cdn.filesafe.space/GIXXjdT1PMRiVUuEducr/media/67de42ddd72169dd9dc3fc39.png" alt="Logo" class="logo">
+        <div class="logo-text">SMS SYSTEM</div>
+      </div>
+      <div class="right-bar">
+        <div class="icon-bar">
+          <button class="icon-btn" title="Call">📞</button>
+          <button class="icon-btn" title="Help">❓</button>
+          <button class="icon-btn" title="Profile">👤</button>
+        </div>
+        <a href="/logout" class="logout-btn">Logout</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="tabs-column">
+      <button class="tab-btn" onclick="location.href='/'">HOME</button>
+      <button class="tab-btn" onclick="location.href='/modems'">MODEMS</button>
+      <button class="tab-btn" onclick="location.href='/upload'">UPLOAD</button>
+      <button class="tab-btn" onclick="location.href='/inbox'">INBOX</button>
+      <button class="tab-btn" onclick="location.href='/templates'">TEMPLATES</button>
+      <button class="tab-btn" onclick="location.href='/my-leads'">MY LEADS</button>
+      <button class="tab-btn" onclick="location.href='/agents'">AGENTS</button>
+      <button class="tab-btn" onclick="location.href='/scraper'">SCRAPER</button>
+    </div>
+
+    <div class="content-container">
+      {% block content %}
+      {% endblock %}
+    </div>
+  </div>
+</body>
+</html>

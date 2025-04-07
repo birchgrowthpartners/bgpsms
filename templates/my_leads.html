@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block title %}My Leads - SMS System{% endblock %}
+
+{% block content %}
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>My Leads</h2>
+    <div class="table-toggle-bar" style="display: flex; gap: 14px;">
+      <button class="table-btn" onclick="togglePopup('leads-popup')">View Claimed Leads</button>
+    </div>
+  </div>
+
+  <!-- Claimed Leads Table Popup -->
+  <div id="leads-popup" class="popup-overlay" style="display: none;">
+    <div class="popup-content">
+      <button class="close-btn" onclick="togglePopup('leads-popup')">✕</button>
+      <h3>Claimed Leads</h3>
+      {% if leads_data %}
+      <table>
+        <thead>
+          <tr>
+            {% for col in leads_data[0].keys() %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in leads_data %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p>No leads claimed yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    function togglePopup(id) {
+      const popup = document.getElementById(id);
+      popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+    }
+  </script>
+{% endblock %}

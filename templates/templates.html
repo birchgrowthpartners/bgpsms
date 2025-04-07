@@ -1,0 +1,109 @@
+{% extends 'base.html' %}
+{% block title %}Templates - SMS System{% endblock %}
+
+{% block content %}
+  <div class="template-container">
+    <!-- Upper 1/3 section for adding templates -->
+    <div class="upper-section">
+      <h2>Templates</h2>
+      
+      <!-- Add Template Form -->
+      <div class="add-template-form">
+        <form method="POST" action="{{ url_for('templates_page') }}">
+          <div class="form-group">
+            <textarea name="template_text" id="template_text" class="template-input" placeholder="Enter your message template here..." required></textarea>
+          </div>
+          <div class="button-group">
+            <button type="submit" class="add-btn">Add Template</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <div class="flash-messages">
+          {% for message in messages %}
+            <div class="flash-message">{{ message }}</div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    
+    <!-- Lower 2/3 section for displaying templates table -->
+    <div class="lower-section">
+      <div class="templates-header">
+        <h3>Available Templates</h3>
+        {% if template_data %}
+        <a href="{{ url_for('clear_all_templates') }}" class="clear-all-btn" onclick="return confirm('Are you sure you want to clear all templates? This will also reset the ID counter.')">Clear All</a>
+        {% endif %}
+      </div>
+      <div class="templates-table-container">
+        {% if template_data %}
+        <table class="templates-table">
+          <thead>
+            <tr>
+              {% for col in template_data[0].keys() %}
+                <th>{{ col }}</th>
+              {% endfor %}
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in template_data %}
+              <tr>
+                {% for col in row.keys() %}
+                  <td>{{ row[col] }}</td>
+                {% endfor %}
+                <td class="actions-cell">
+                  <a href="{{ url_for('delete_template', template_id=row['id']) }}" class="delete-btn" onclick="return confirm('Are you sure you want to delete this template?')">Delete</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <p>No templates available. Add your first template above.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  
+  <!-- Keep the original popup functionality for compatibility -->
+  <div id="templates-popup" class="popup-overlay" style="display: none;">
+    <div class="popup-content">
+      <button class="close-btn" onclick="togglePopup('templates-popup')">✕</button>
+      <h3>Templates</h3>
+      {% if template_data %}
+      <table>
+        <thead>
+          <tr>
+            {% for col in template_data[0].keys() %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in template_data %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p>No templates available.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    function togglePopup(id) {
+      const popup = document.getElementById(id);
+      popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+    }
+  </script>
+{% endblock %}

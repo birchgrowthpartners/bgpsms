@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% block title %}Upload - SMS System{% endblock %}
+
+{% block content %}
+  <div style="display: flex; justify-content: space-between; align-items: center;">
+    <h2>Upload</h2>
+  </div>
+
+  <!-- CSV Upload Section -->
+  <div class="upload-section">
+    <form action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data">
+      <label for="csv_file">Choose CSV file to upload:</label>
+      <input type="file" name="csv_file" accept=".csv" required>
+      <button type="submit" class="upload-btn">Upload</button>
+      <div class="button-row">
+        <button type="button" class="start-btn">Start</button>
+        <button type="button" class="stop-btn">Stop</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Contacts Queue and Contacts Sent Tables Section -->
+  <div class="tables-section">
+    <!-- Contacts Queue Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3>Contacts Queue</h3>
+        <a href="{{ url_for('clear_queue') }}" class="clear-btn">Clear Contacts Queue</a>
+      </div>
+      {% if queue_data %}
+      <table>
+        <thead>
+          <tr>
+            {% for col in queue_data[0].keys() %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in queue_data %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p>No contacts in queue.</p>
+      {% endif %}
+    </div>
+
+    <!-- Contacts Sent Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3>Contacts Sent</h3>
+        <a href="{{ url_for('clear_sent') }}" class="clear-btn">Clear Contacts Sent</a>
+      </div>
+      {% if sent_data %}
+      <table>
+        <thead>
+          <tr>
+            {% for col in sent_data[0].keys() %}
+              <th>{{ col }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in sent_data %}
+            <tr>
+              {% for col in row.keys() %}
+                <td>{{ row[col] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <p>No contacts sent yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    // Ensure the tables are displayed by default
+    document.getElementById("queue-popup").style.display = 'flex';
+    document.getElementById("sent-popup").style.display = 'flex';
+
+    function togglePopup(id) {
+      const popup = document.getElementById(id);
+      popup.style.display = popup.style.display === 'none' ? 'flex' : 'none';
+    }
+  </script>
+{% endblock %}
